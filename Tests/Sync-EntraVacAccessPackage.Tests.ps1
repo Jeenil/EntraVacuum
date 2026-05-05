@@ -2,7 +2,7 @@ BeforeAll {
     Import-Module "$PSScriptRoot/../EntraVacuum/EntraVacuum.psd1" -Force
 }
 
-Describe 'Sync-EVAccessPackage' {
+Describe 'Sync-EntraVacAccessPackage' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
             Mock Invoke-MgGraphRequest {
@@ -11,13 +11,13 @@ Describe 'Sync-EVAccessPackage' {
         }
 
         It 'writes a warning and returns' {
-            { Sync-EVAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue } |
+            { Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue } |
                 Should -Not -Throw
         }
     }
 }
 
-Describe 'Get-EVAccessPackageDrift' {
+Describe 'Get-EntraVacAccessPackageDrift' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
             Mock Invoke-MgGraphRequest {
@@ -26,7 +26,7 @@ Describe 'Get-EVAccessPackageDrift' {
         }
 
         It 'writes a warning and returns null' {
-            $result = Get-EVAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
             $result | Should -BeNullOrEmpty
         }
     }

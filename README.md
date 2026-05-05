@@ -23,13 +23,13 @@ Install-Module -Name EntraVacuum -Scope CurrentUser
 Connect-MgGraph -Scopes "User.Read.All", "EntitlementManagement.ReadWrite.All"
 
 # Preview what would change
-Get-EVAccessPackageDrift -AccessPackageId "<package-id>"
+Get-EntraVacAccessPackageDrift -AccessPackageId "<package-id>"
 
 # Sync assignments
-Sync-EVAccessPackage -AccessPackageId "<package-id>"
+Sync-EntraVacAccessPackage -AccessPackageId "<package-id>"
 
 # Dry run
-Sync-EVAccessPackage -AccessPackageId "<package-id>" -WhatIf
+Sync-EntraVacAccessPackage -AccessPackageId "<package-id>" -WhatIf
 ```
 
 ## Development

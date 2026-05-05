@@ -1,4 +1,4 @@
-function Get-EVAccessPackageDrift {
+function Get-EntraVacAccessPackageDrift {
     <#
     .SYNOPSIS
         Returns users who should be assigned to an access package but are not, and vice versa.
@@ -11,7 +11,7 @@ function Get-EVAccessPackageDrift {
         The object ID of the access package to inspect.
 
     .EXAMPLE
-        Get-EVAccessPackageDrift -AccessPackageId "ad524555-24ef-412a-8d20-e070c088a42d"
+        Get-EntraVacAccessPackageDrift -AccessPackageId "ad524555-24ef-412a-8d20-e070c088a42d"
     #>
     [CmdletBinding()]
     param (

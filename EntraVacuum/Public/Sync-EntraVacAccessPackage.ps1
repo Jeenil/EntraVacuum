@@ -1,4 +1,4 @@
-function Sync-EVAccessPackage {
+function Sync-EntraVacAccessPackage {
     <#
     .SYNOPSIS
         Syncs membership for an Entra ID access package based on its auto-assignment policy filter.
@@ -14,7 +14,7 @@ function Sync-EVAccessPackage {
         Preview changes without applying them.
 
     .EXAMPLE
-        Sync-EVAccessPackage -AccessPackageId "ad524555-24ef-412a-8d20-e070c088a42d"
+        Sync-EntraVacAccessPackage -AccessPackageId "ad524555-24ef-412a-8d20-e070c088a42d"
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param (
