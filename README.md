@@ -48,6 +48,21 @@ Invoke-Pester ./Tests
 Test-ModuleManifest -Path ./EntraVacuum/EntraVacuum.psd1
 ```
 
+## Versioning
+
+Bump the version before merging changes that should be published:
+
+```powershell
+./Invoke-VersionBump.ps1           # patch: 0.1.0 -> 0.1.1
+./Invoke-VersionBump.ps1 -Part Minor  # minor: 0.1.0 -> 0.2.0
+./Invoke-VersionBump.ps1 -Part Major  # major: 0.1.0 -> 1.0.0
+```
+
+Then trigger a publish manually from the Actions tab once merged.
+
 ## License
 
 MIT
+
+
+canary

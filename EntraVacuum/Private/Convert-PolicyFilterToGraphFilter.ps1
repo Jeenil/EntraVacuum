@@ -16,6 +16,7 @@ function Convert-PolicyFilterToGraphFilter {
     #>
     param (
         [Parameter(Mandatory)]
+        [AllowEmptyString()]
         [string] $PolicyFilter
     )
 
