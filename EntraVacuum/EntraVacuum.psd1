@@ -30,7 +30,7 @@ CompanyName = 'Unknown'
 Copyright = '(c) Jeenil Patel. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Entra ID automation and desired-state management for access packages, guest users, and identity governance.'
+Description = 'Entra ID desired-state management for access packages. Reconciles assignments against auto-assignment policy filters faster than the built-in 24-hour cycle.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '7.2'
