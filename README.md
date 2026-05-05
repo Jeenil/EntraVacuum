@@ -51,3 +51,6 @@ Test-ModuleManifest -Path ./EntraVacuum/EntraVacuum.psd1
 ## License
 
 MIT
+
+
+canary
