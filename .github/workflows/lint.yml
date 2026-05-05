@@ -7,8 +7,9 @@ jobs:
       - uses: actions/checkout@v4
       - shell: pwsh
         run: |
-          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Force -Scope CurrentUser
           $r = Invoke-ScriptAnalyzer -Path ./EntraVacuum -Recurse `
-            -Settings ./PSScriptAnalyzerSettings.psd1
+            -Severity Error, Warning `
+            -ExcludeRule "PSUseBOMForUnicodeEncodedFile", "PSMissingModuleManifestField"
           $r | Format-Table
-          if ($r | Where-Object Severity -in 'Error','Warning') { exit 1 }
+          if ($r) { exit 1 }
