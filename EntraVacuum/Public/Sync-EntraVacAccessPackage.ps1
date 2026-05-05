@@ -24,7 +24,7 @@ function Sync-EntraVacAccessPackage {
 
     # Get the auto-assignment policy for this package
     $policies = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackageId eq '$AccessPackageId'" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackage/id eq '$AccessPackageId'" |
         Select-Object -ExpandProperty value
 
     $autoPolicy = $policies | Where-Object { $_.requestorSettings.scopeType -eq 'AllExistingDirectoryMemberUsers' -or $null -ne $_.automaticRequestSettings } |
@@ -37,7 +37,7 @@ function Sync-EntraVacAccessPackage {
 
     # Get current assignments
     $assignments = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackageId eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
         Select-Object -ExpandProperty value
 
     $assignedUserIds = $assignments | ForEach-Object { $_.target.objectId }

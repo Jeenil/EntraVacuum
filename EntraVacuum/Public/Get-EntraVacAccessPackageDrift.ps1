@@ -20,7 +20,7 @@ function Get-EntraVacAccessPackageDrift {
     )
 
     $policies = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackageId eq '$AccessPackageId'" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackage/id eq '$AccessPackageId'" |
         Select-Object -ExpandProperty value
 
     $autoPolicy = $policies | Where-Object { $null -ne $_.automaticRequestSettings } | Select-Object -First 1
@@ -31,7 +31,7 @@ function Get-EntraVacAccessPackageDrift {
     }
 
     $assignments = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackageId eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
         Select-Object -ExpandProperty value
 
     $assignedUserIds = $assignments | ForEach-Object { $_.target.objectId }
