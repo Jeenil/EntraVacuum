@@ -1,0 +1,15 @@
+name: Publish
+on:
+  push:
+    branches: [main]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: |
+          Test-ModuleManifest -Path ./EntraVacuum/EntraVacuum.psd1
+          Publish-Module -Path ./EntraVacuum -NuGetApiKey $env:PSGALLERY_KEY
+        env:
+          PSGALLERY_KEY: ${{ secrets.PSGALLERY_API_KEY }}

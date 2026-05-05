@@ -1,0 +1,14 @@
+name: Lint
+on: [pull_request]
+jobs:
+  pssa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path ./EntraVacuum -Recurse `
+            -Settings ./PSScriptAnalyzerSettings.psd1
+          $r | Format-Table
+          if ($r | Where-Object Severity -in 'Error','Warning') { exit 1 }
