@@ -27,7 +27,7 @@ function Sync-EntraVacAccessPackage {
         -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackageId eq '$AccessPackageId'" |
         Select-Object -ExpandProperty value
 
-    $autoPolicy = $policies | Where-Object { $_.requestorSettings.scopeType -eq 'AllExistingDirectoryMemberUsers' -or $_.automaticRequestSettings -ne $null } |
+    $autoPolicy = $policies | Where-Object { $_.requestorSettings.scopeType -eq 'AllExistingDirectoryMemberUsers' -or $null -ne $_.automaticRequestSettings } |
         Select-Object -First 1
 
     if (-not $autoPolicy) {

@@ -5,7 +5,7 @@ BeforeAll {
 Describe 'Sync-EntraVacAccessPackage' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
-            Mock Invoke-MgGraphRequest {
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @() }
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
@@ -20,7 +20,7 @@ Describe 'Sync-EntraVacAccessPackage' {
 Describe 'Get-EntraVacAccessPackageDrift' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
-            Mock Invoke-MgGraphRequest {
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @() }
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }

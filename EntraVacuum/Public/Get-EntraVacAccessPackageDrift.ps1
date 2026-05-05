@@ -23,7 +23,7 @@ function Get-EntraVacAccessPackageDrift {
         -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackageId eq '$AccessPackageId'" |
         Select-Object -ExpandProperty value
 
-    $autoPolicy = $policies | Where-Object { $_.automaticRequestSettings -ne $null } | Select-Object -First 1
+    $autoPolicy = $policies | Where-Object { $null -ne $_.automaticRequestSettings } | Select-Object -First 1
 
     if (-not $autoPolicy) {
         Write-Warning "No auto-assignment policy found for access package $AccessPackageId"
