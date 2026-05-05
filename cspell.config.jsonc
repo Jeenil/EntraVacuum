@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "files": [
+    "**/*.ps1",
+    "**/*.psm1",
+    "**/*.psd1",
+    "**/*.md",
+    "**/*.yml",
+    "**/*.json",
+    "**/*.jsonc",
+  ],
+  "useGitignore": true,
+  "ignorePaths": [
+    ".git/**",
+    "LICENSE",
+  ],
+  "words": [
+    "adminAdd",
+    "adminRemove",
+    "EntraVac",
+    "EntraVacuum",
+    "Jeenil",
+    "nextLink",
+    "odata",
+    "PSGallery",
+    "PSGALLERY",
+    "PSSA",
+    "requestorFilter",
+    "ShouldProcess",
+  ],
+}
