@@ -9,6 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - shell: pwsh
         run: |
+          if (-not $env:PSGALLERY_KEY) { throw "PSGALLERY_API_KEY secret is not set." }
           $manifest = Test-ModuleManifest -Path ./EntraVacuum/EntraVacuum.psd1
           $version = $manifest.Version.ToString()
           $existing = Find-Module -Name EntraVacuum -RequiredVersion $version -ErrorAction SilentlyContinue
