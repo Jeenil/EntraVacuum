@@ -34,7 +34,7 @@ BeforeAll {
     }
 }
 
-Describe 'Sync-EntraVacAccessPackage' {
+Describe 'Get-EntraVacAccessPackageDrift' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
@@ -42,9 +42,10 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
             $warnings | Should -Not -BeNullOrEmpty
+            $result   | Should -BeNullOrEmpty
         }
     }
 
@@ -55,9 +56,10 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
             $warnings | Should -Not -BeNullOrEmpty
+            $result   | Should -BeNullOrEmpty
         }
     }
 
@@ -68,8 +70,8 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes an error and returns' {
-            $null = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction SilentlyContinue -ErrorVariable testErrors
+        It 'writes an error and returns null' {
+            $null = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction SilentlyContinue -ErrorVariable testErrors
             $testErrors | Should -Not -BeNullOrEmpty
         }
     }
@@ -85,9 +87,10 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignments*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
             $warnings | Should -Not -BeNullOrEmpty
+            $result   | Should -BeNullOrEmpty
         }
     }
 
@@ -106,10 +109,10 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*users*' }
         }
 
-        It 'writes a warning and returns without making changes' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
             $warnings | Should -Not -BeNullOrEmpty
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 0 -ParameterFilter { $Method -eq 'POST' }
+            $result   | Should -BeNullOrEmpty
         }
     }
 
@@ -122,32 +125,27 @@ Describe 'Sync-EntraVacAccessPackage' {
             # user-b is assigned but no longer matches the filter
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @(
-                    @{ id = 'assign-b'; state = 'Delivered'; assignmentPolicyId = 'policy-active-id'; target = @{ objectId = 'user-b' } }
+                    @{ id = 'assign-b'; state = 'Delivered'; target = @{ objectId = 'user-b' } }
                 )}
             } -ParameterFilter { $Uri -like '*assignments*' }
 
             # user-a and user-c match the filter; user-b does not
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @(
-                    @{ id = 'user-a'; userPrincipalName = 'a@example.com' }
-                    @{ id = 'user-c'; userPrincipalName = 'c@example.com' }
+                    @{ id = 'user-a'; displayName = 'User A'; userPrincipalName = 'a@example.com' }
+                    @{ id = 'user-c'; displayName = 'User C'; userPrincipalName = 'c@example.com' }
                 )}
             } -ParameterFilter { $Uri -like '*users*' }
-
-            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {} -ParameterFilter { $Method -eq 'POST' }
         }
 
-        It 'adminAdds missing users and adminRemoves stale assignments' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id'
+        It 'reports users that should be added' {
+            $drift = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            ($drift.ShouldAdd | Measure-Object).Count | Should -Be 2
+        }
 
-            # user-a and user-c should be added (2 POSTs for adminAdd)
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 2 -ParameterFilter {
-                $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminAdd'
-            }
-            # user-b assignment should be removed (1 POST for adminRemove)
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
-                $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminRemove'
-            }
+        It 'reports assignments that should be removed' {
+            $drift = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            $drift.ShouldRemove.objectId | Should -Contain 'user-b'
         }
     }
 
@@ -166,22 +164,16 @@ Describe 'Sync-EntraVacAccessPackage' {
 
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @(
-                    @{ id = 'user-a'; userPrincipalName = 'a@example.com' }
+                    @{ id = 'user-a'; displayName = 'User A'; userPrincipalName = 'a@example.com' }
                 )}
             } -ParameterFilter { $Uri -like '*users*' }
-
-            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {} -ParameterFilter { $Method -eq 'POST' }
         }
 
-        It 'reprocesses the PartiallyDelivered assignment instead of removing and re-adding' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id'
-
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
-                $Method -eq 'POST' -and $Uri -like '*/reprocess'
-            }
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 0 -ParameterFilter {
-                $Method -eq 'POST' -and $Uri -notlike '*/reprocess'
-            }
+        It 'reports the assignment in ShouldReprocess not ShouldAdd or ShouldRemove' {
+            $drift = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            ($drift.ShouldReprocess | Measure-Object).Count | Should -Be 1
+            ($drift.ShouldAdd       | Measure-Object).Count | Should -Be 0
+            ($drift.ShouldRemove    | Measure-Object).Count | Should -Be 0
         }
     }
 }
