@@ -69,7 +69,7 @@ Describe 'Sync-EntraVacAccessPackage' {
         }
 
         It 'writes an error and returns' {
-            $errors = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue 2>&1
+            $errors = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction Continue 2>&1
             $errors | Should -Not -BeNullOrEmpty
         }
     }
@@ -148,8 +148,6 @@ Describe 'Sync-EntraVacAccessPackage' {
             Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
                 $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminRemove'
             }
-<<<<<<< HEAD
-=======
         }
     }
 
@@ -184,7 +182,6 @@ Describe 'Sync-EntraVacAccessPackage' {
             Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 0 -ParameterFilter {
                 $Method -eq 'POST' -and $Uri -notlike '*/reprocess'
             }
->>>>>>> 9a51128 (chore: squashed 2 commits)
         }
     }
 }

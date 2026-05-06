@@ -71,7 +71,7 @@ Describe 'Get-EntraVacAccessPackageDrift' {
         }
 
         It 'writes an error and returns null' {
-            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue 2>&1
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction Continue 2>&1
             $result | Should -Not -BeNullOrEmpty
         }
     }
@@ -148,8 +148,6 @@ Describe 'Get-EntraVacAccessPackageDrift' {
             $drift.ShouldRemove.objectId | Should -Contain 'user-b'
         }
     }
-<<<<<<< HEAD
-=======
 
     Context 'when a PartiallyDelivered assignment exists for a user still in target' {
         BeforeEach {
@@ -178,5 +176,4 @@ Describe 'Get-EntraVacAccessPackageDrift' {
             ($drift.ShouldRemove    | Measure-Object).Count | Should -Be 0
         }
     }
->>>>>>> 9a51128 (chore: squashed 2 commits)
 }
