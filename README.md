@@ -2,8 +2,8 @@
 
 Entra ID desired-state management for access packages. Reconciles assignments against auto-assignment policy filters faster than the built-in 24-hour cycle.
 
-[![Lint](https://github.com/Jeenil/EntraVacuum/actions/workflows/lint.yml/badge.svg)](https://github.com/Jeenil/EntraVacuum/actions/workflows/lint.yml)
-[![Test](https://github.com/Jeenil/EntraVacuum/actions/workflows/test.yml/badge.svg)](https://github.com/Jeenil/EntraVacuum/actions/workflows/test.yml)
+[![Lint](https://github.com/Jeenil/entra-vacuum/actions/workflows/lint.yml/badge.svg)](https://github.com/Jeenil/entra-vacuum/actions/workflows/lint.yml)
+[![Test](https://github.com/Jeenil/entra-vacuum/actions/workflows/test.yml/badge.svg)](https://github.com/Jeenil/entra-vacuum/actions/workflows/test.yml)
 
 ## Install
 
