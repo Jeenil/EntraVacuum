@@ -71,8 +71,8 @@ Describe 'Get-EntraVacAccessPackageDrift' {
         }
 
         It 'writes an error and returns null' {
-            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction Continue 2>&1
-            $result | Should -Not -BeNullOrEmpty
+            $null = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction SilentlyContinue -ErrorVariable testErrors
+            $testErrors | Should -Not -BeNullOrEmpty
         }
     }
 
