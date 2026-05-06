@@ -53,7 +53,7 @@ Both functions require the access package to have an auto-assignment policy
 with [`automaticRequestSettings`](https://learn.microsoft.com/en-us/graph/api/resources/accesspackageautomaticrequestsettings?view=graph-rest-1.0)
 configured. The following conditions cause the function to skip with a warning or error:
 
-| Condition | Behaviour |
+| Condition | Behavior |
 |---|---|
 | No auto-assignment policy found | Warning - skipped |
 | Auto-assignment policy is inactive (`requestAccessForAllowedTargets = false`) | Warning - skipped |
