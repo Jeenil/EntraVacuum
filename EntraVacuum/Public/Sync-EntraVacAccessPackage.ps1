@@ -4,8 +4,13 @@ function Sync-EntraVacAccessPackage {
         Syncs membership for an Entra ID access package based on its auto-assignment policy filter.
 
     .DESCRIPTION
-        Reads the auto-assignment policy filter for the given access package, evaluates it against
-        all users in the tenant, and performs adminAdd/adminRemove to reconcile actual assignments.
+        Reads the active auto-assignment policy's membershipRule for the given access package,
+        evaluates it against all users in the tenant, and performs adminAdd/adminRemove
+        to reconcile actual assignments.
+
+        Microsoft only permits one auto-assignment policy per access package. If more than one
+        active policy is detected this indicates a misconfiguration and an error is emitted.
+        Ref: https://learn.microsoft.com/en-us/entra/id-governance/entitlement-management-access-package-auto-assignment-policy
 
     .PARAMETER AccessPackageId
         The object ID of the access package to sync.
@@ -22,61 +27,97 @@ function Sync-EntraVacAccessPackage {
         [string] $AccessPackageId
     )
 
-    # Get the auto-assignment policy for this package
+    # Get all policies for this package
+    # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-list-assignmentpolicies?view=graph-rest-1.0
     $policies = Invoke-MgGraphRequest -Method GET `
         -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentPolicies?`$filter=accessPackage/id eq '$AccessPackageId'" |
         Select-Object -ExpandProperty value
 
-    $autoPolicy = $policies | Where-Object { $_.requestorSettings.scopeType -eq 'AllExistingDirectoryMemberUsers' -or $null -ne $_.automaticRequestSettings } |
-        Select-Object -First 1
+    # Validate the auto-assignment policy state.
+    # Ref: https://learn.microsoft.com/en-us/graph/api/resources/accesspackageautomaticrequestsettings?view=graph-rest-1.0
+    $autoPolicies     = $policies | Where-Object { $null -ne $_.automaticRequestSettings }
+    $activePolicies   = $autoPolicies | Where-Object { $_.automaticRequestSettings.requestAccessForAllowedTargets -eq $true }
+    $inactivePolicies = $autoPolicies | Where-Object { $_.automaticRequestSettings.requestAccessForAllowedTargets -ne $true }
 
-    if (-not $autoPolicy) {
+    if (-not $autoPolicies) {
         Write-Warning "No auto-assignment policy found for access package $AccessPackageId"
         return
     }
 
-    # Get current assignments
+    if ($inactivePolicies) {
+        Write-Warning "The auto-assignment policy for access package $AccessPackageId is inactive (requestAccessForAllowedTargets = false). Skipping."
+        return
+    }
+
+    if (($activePolicies | Measure-Object).Count -gt 1) {
+        Write-Error "Access package $AccessPackageId has more than one active auto-assignment policy. This is a misconfiguration - only one is supported. Resolve in the Entra portal before running this command."
+        return
+    }
+
+    $activePolicy = $activePolicies | Select-Object -First 1
+
+    # Get Delivered assignments.
+    # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-list-assignments?view=graph-rest-1.0
     $assignments = Invoke-MgGraphRequest -Method GET `
         -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
         Select-Object -ExpandProperty value
 
     $assignedUserIds = $assignments | ForEach-Object { $_.target.objectId }
 
-    # Translate policy filter to Graph OData filter and fetch target users
-    $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $autoPolicy.automaticRequestSettings.requestorFilter
-    $targetUsers  = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id" |
+    # Translate the active policy membershipRule to a Graph OData filter and fetch target users
+    # Ref: https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0
+    $membershipRule = $activePolicy.specificAllowedTargets |
+        Where-Object { $_.'@odata.type' -eq '#microsoft.graph.attributeRuleMembers' } |
+        Select-Object -First 1 -ExpandProperty membershipRule
+
+    if ([string]::IsNullOrWhiteSpace($membershipRule)) {
+        Write-Warning "The auto-assignment policy for access package $AccessPackageId has no membershipRule. Skipping to avoid unintended removals."
+        return
+    }
+
+    $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $membershipRule
+    $targetUsers = Invoke-MgGraphRequest -Method GET `
+        -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id,displayName,userPrincipalName" |
         Select-Object -ExpandProperty value
 
-    $targetUserIds = $targetUsers | ForEach-Object { $_.id }
+    if (-not $targetUsers) {
+        Write-Warning "The membershipRule for access package $AccessPackageId returned no users. Skipping to avoid unintended removals."
+        return
+    }
 
-    # Diff
+    $targetUserIds = $targetUsers | ForEach-Object { $_.id }
+    $targetUserMap = @{}
+    foreach ($u in $targetUsers) { $targetUserMap[$u.id] = $u }
+
     $toAdd    = $targetUserIds | Where-Object { $_ -notin $assignedUserIds }
-    $toRemove = $assignedUserIds | Where-Object { $_ -notin $targetUserIds }
+    $toRemove = $assignments | Where-Object { $_.target.objectId -notin $targetUserIds }
 
     Write-Verbose "Access package $AccessPackageId - adding $($toAdd.Count), removing $($toRemove.Count)"
 
+    # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-post-assignmentrequests?view=graph-rest-1.0
     foreach ($userId in $toAdd) {
-        if ($PSCmdlet.ShouldProcess($userId, "adminAdd to access package $AccessPackageId")) {
+        $upn = $targetUserMap[$userId].userPrincipalName
+        if ($PSCmdlet.ShouldProcess("$upn ($userId)", "adminAdd to access package $AccessPackageId")) {
             Invoke-MgGraphRequest -Method POST `
                 -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentRequests" `
                 -Body (@{
-                    requestType   = 'adminAdd'
+                    requestType             = 'adminAdd'
                     accessPackageAssignment = @{
-                        targetId      = $userId
-                        assignmentPolicyId = $autoPolicy.id
+                        targetId           = $userId
+                        assignmentPolicyId = $activePolicy.id
                         accessPackageId    = $AccessPackageId
                     }
                 } | ConvertTo-Json -Depth 5) | Out-Null
         }
     }
 
-    foreach ($assignment in ($assignments | Where-Object { $_.target.objectId -in $toRemove })) {
-        if ($PSCmdlet.ShouldProcess($assignment.target.objectId, "adminRemove from access package $AccessPackageId")) {
+    foreach ($assignment in $toRemove) {
+        $upn = $assignment.target.displayName ?? $assignment.target.objectId
+        if ($PSCmdlet.ShouldProcess("$upn ($($assignment.target.objectId))", "adminRemove from access package $AccessPackageId")) {
             Invoke-MgGraphRequest -Method POST `
                 -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignmentRequests" `
                 -Body (@{
-                    requestType              = 'adminRemove'
+                    requestType               = 'adminRemove'
                     accessPackageAssignmentId = $assignment.id
                 } | ConvertTo-Json -Depth 3) | Out-Null
         }
