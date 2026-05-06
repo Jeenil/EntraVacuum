@@ -69,8 +69,8 @@ Describe 'Sync-EntraVacAccessPackage' {
         }
 
         It 'writes an error and returns' {
-            $errors = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction Continue 2>&1
-            $errors | Should -Not -BeNullOrEmpty
+            $null = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -ErrorAction SilentlyContinue -ErrorVariable testErrors
+            $testErrors | Should -Not -BeNullOrEmpty
         }
     }
 
