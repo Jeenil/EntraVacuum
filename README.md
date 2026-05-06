@@ -1,4 +1,4 @@
-# EntraVacuum
+# entra-vacuum
 
 Entra ID desired-state management for access packages. Reconciles assignments against auto-assignment policy filters faster than the built-in 24-hour cycle.
 
