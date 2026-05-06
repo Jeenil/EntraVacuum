@@ -148,6 +148,43 @@ Describe 'Sync-EntraVacAccessPackage' {
             Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
                 $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminRemove'
             }
+<<<<<<< HEAD
+=======
+        }
+    }
+
+    Context 'when a PartiallyDelivered assignment exists for a user still in target' {
+        BeforeEach {
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @($script:ActivePolicy) }
+            } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
+
+            # user-a has a PartiallyDelivered assignment and still matches the filter
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @(
+                    @{ id = 'assign-a'; state = 'PartiallyDelivered'; target = @{ objectId = 'user-a'; displayName = 'User A' } }
+                )}
+            } -ParameterFilter { $Uri -like '*assignments*' }
+
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @(
+                    @{ id = 'user-a'; userPrincipalName = 'a@example.com' }
+                )}
+            } -ParameterFilter { $Uri -like '*users*' }
+
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {} -ParameterFilter { $Method -eq 'POST' }
+        }
+
+        It 'reprocesses the PartiallyDelivered assignment instead of removing and re-adding' {
+            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id'
+
+            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
+                $Method -eq 'POST' -and $Uri -like '*/reprocess'
+            }
+            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 0 -ParameterFilter {
+                $Method -eq 'POST' -and $Uri -notlike '*/reprocess'
+            }
+>>>>>>> 9a51128 (chore: squashed 2 commits)
         }
     }
 }
