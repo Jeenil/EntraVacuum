@@ -1,7 +1,6 @@
 BeforeAll {
     Import-Module "$PSScriptRoot/../EntraVacuum/EntraVacuum.psd1" -Force
 
-    # Reusable policy stubs
     $script:ActivePolicy = @{
         id                       = 'policy-active-id'
         automaticRequestSettings = @{
@@ -34,7 +33,7 @@ BeforeAll {
     }
 }
 
-Describe 'Sync-EntraVacAccessPackage' {
+Describe 'Get-EntraVacAccessPackageDrift' {
     Context 'when no auto-assignment policy exists' {
         BeforeEach {
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
@@ -42,9 +41,9 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
-            $warnings | Should -Not -BeNullOrEmpty
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
+            $result | Should -BeNullOrEmpty
         }
     }
 
@@ -55,9 +54,9 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
-            $warnings | Should -Not -BeNullOrEmpty
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
+            $result | Should -BeNullOrEmpty
         }
     }
 
@@ -68,9 +67,9 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
         }
 
-        It 'writes an error and returns' {
-            $errors = Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue 2>&1
-            $errors | Should -Not -BeNullOrEmpty
+        It 'writes an error and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue 2>$null
+            $result | Should -BeNullOrEmpty
         }
     }
 
@@ -85,9 +84,9 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*assignments*' }
         }
 
-        It 'writes a warning and returns' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
-            $warnings | Should -Not -BeNullOrEmpty
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
+            $result | Should -BeNullOrEmpty
         }
     }
 
@@ -106,10 +105,9 @@ Describe 'Sync-EntraVacAccessPackage' {
             } -ParameterFilter { $Uri -like '*users*' }
         }
 
-        It 'writes a warning and returns without making changes' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id' -WarningAction SilentlyContinue -WarningVariable warnings
-            $warnings | Should -Not -BeNullOrEmpty
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 0 -ParameterFilter { $Method -eq 'POST' }
+        It 'writes a warning and returns null' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id' -WarningAction SilentlyContinue
+            $result | Should -BeNullOrEmpty
         }
     }
 
@@ -122,32 +120,30 @@ Describe 'Sync-EntraVacAccessPackage' {
             # user-b is assigned but no longer matches the filter
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @(
-                    @{ id = 'assign-b'; assignmentPolicyId = 'policy-active-id'; target = @{ objectId = 'user-b' } }
+                    @{ id = 'assign-b'; assignmentPolicyId = 'policy-active-id'; target = @{ objectId = 'user-b'; displayName = 'User B' } }
                 )}
             } -ParameterFilter { $Uri -like '*assignments*' }
 
             # user-a and user-c match the filter; user-b does not
             Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
                 @{ value = @(
-                    @{ id = 'user-a' }
-                    @{ id = 'user-c' }
+                    @{ id = 'user-a'; displayName = 'User A'; userPrincipalName = 'a@contoso.com' }
+                    @{ id = 'user-c'; displayName = 'User C'; userPrincipalName = 'c@contoso.com' }
                 )}
             } -ParameterFilter { $Uri -like '*users*' }
-
-            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {} -ParameterFilter { $Method -eq 'POST' }
         }
 
-        It 'adminAdds missing users and adminRemoves stale assignments' {
-            Sync-EntraVacAccessPackage -AccessPackageId 'fake-id'
+        It 'reports users that should be added' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            $result.ShouldAdd | Should -HaveCount 2
+            $result.ShouldAdd.id | Should -Contain 'user-a'
+            $result.ShouldAdd.id | Should -Contain 'user-c'
+        }
 
-            # user-a and user-c should be added (2 POSTs for adminAdd)
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 2 -ParameterFilter {
-                $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminAdd'
-            }
-            # user-b assignment should be removed (1 POST for adminRemove)
-            Should -Invoke -ModuleName EntraVacuum Invoke-MgGraphRequest -Times 1 -ParameterFilter {
-                $Method -eq 'POST' -and ($Body | ConvertFrom-Json).requestType -eq 'adminRemove'
-            }
+        It 'reports assignments that should be removed' {
+            $result = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            $result.ShouldRemove | Should -HaveCount 1
+            $result.ShouldRemove.objectId | Should -Contain 'user-b'
         }
     }
 }
