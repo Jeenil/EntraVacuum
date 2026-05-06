@@ -5,9 +5,19 @@ function Sync-EntraVacAccessPackage {
 
     .DESCRIPTION
         Reads the active auto-assignment policy's membershipRule for the given access package,
+<<<<<<< HEAD
         evaluates it against all users in the tenant, and performs adminAdd/adminRemove
         to reconcile actual assignments.
 
+=======
+        evaluates it against all users in the tenant, and performs adminAdd/reprocess/adminRemove
+        to reconcile actual assignments.
+
+        Assignment states handled:
+          Delivered         - user in target: keep. Not in target: adminRemove.
+          PartiallyDelivered - user in target: reprocess. Not in target: adminRemove.
+
+>>>>>>> 9a51128 (chore: squashed 2 commits)
         Microsoft only permits one auto-assignment policy per access package. If more than one
         active policy is detected this indicates a misconfiguration and an error is emitted.
         Ref: https://learn.microsoft.com/en-us/entra/id-governance/entitlement-management-access-package-auto-assignment-policy
@@ -56,13 +66,19 @@ function Sync-EntraVacAccessPackage {
 
     $activePolicy = $activePolicies | Select-Object -First 1
 
+<<<<<<< HEAD
     # Get Delivered assignments.
+=======
+    # Get Delivered and PartiallyDelivered assignments.
+    # PartiallyDelivered = provisioning started but at least one resource role failed.
+>>>>>>> 9a51128 (chore: squashed 2 commits)
     # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-list-assignments?view=graph-rest-1.0
     $assignments = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and (state eq 'Delivered' or state eq 'PartiallyDelivered')&`$expand=target" |
         Select-Object -ExpandProperty value
 
-    $assignedUserIds = $assignments | ForEach-Object { $_.target.objectId }
+    $partialAssignments = $assignments | Where-Object { $_.state -eq 'PartiallyDelivered' }
+    $assignedUserIds    = $assignments | ForEach-Object { $_.target.objectId }
 
     # Translate the active policy membershipRule to a Graph OData filter and fetch target users
     # Ref: https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0
@@ -75,9 +91,19 @@ function Sync-EntraVacAccessPackage {
         return
     }
 
+<<<<<<< HEAD
     $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $membershipRule
     $targetUsers = Invoke-MgGraphRequest -Method GET `
         -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id,displayName,userPrincipalName" |
+=======
+    # ConsistencyLevel + $count=true required for advanced filter properties such as
+    # onPremisesExtensionAttributes. Safe to use for all filter expressions.
+    # Ref: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http
+    $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $membershipRule
+    $targetUsers = Invoke-MgGraphRequest -Method GET `
+        -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id,displayName,userPrincipalName&`$count=true" `
+        -Headers @{ ConsistencyLevel = 'eventual' } |
+>>>>>>> 9a51128 (chore: squashed 2 commits)
         Select-Object -ExpandProperty value
 
     if (-not $targetUsers) {
@@ -89,10 +115,16 @@ function Sync-EntraVacAccessPackage {
     $targetUserMap = @{}
     foreach ($u in $targetUsers) { $targetUserMap[$u.id] = $u }
 
+<<<<<<< HEAD
     $toAdd    = $targetUserIds | Where-Object { $_ -notin $assignedUserIds }
     $toRemove = $assignments | Where-Object { $_.target.objectId -notin $targetUserIds }
+=======
+    $toAdd       = $targetUserIds | Where-Object { $_ -notin $assignedUserIds }
+    $toReprocess = $partialAssignments | Where-Object { $_.target.objectId -in $targetUserIds }
+    $toRemove    = $assignments | Where-Object { $_.target.objectId -notin $targetUserIds }
+>>>>>>> 9a51128 (chore: squashed 2 commits)
 
-    Write-Verbose "Access package $AccessPackageId - adding $($toAdd.Count), removing $($toRemove.Count)"
+    Write-Verbose "Access package $AccessPackageId - adding $($toAdd.Count), reprocessing $($toReprocess.Count), removing $($toRemove.Count)"
 
     # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-post-assignmentrequests?view=graph-rest-1.0
     foreach ($userId in $toAdd) {
@@ -111,6 +143,19 @@ function Sync-EntraVacAccessPackage {
         }
     }
 
+<<<<<<< HEAD
+=======
+    # Reprocess PartiallyDelivered assignments where the user still belongs.
+    # Ref: https://learn.microsoft.com/en-us/graph/api/accesspackageassignment-reprocess?view=graph-rest-1.0
+    foreach ($assignment in $toReprocess) {
+        $upn = $assignment.target.displayName ?? $assignment.target.objectId
+        if ($PSCmdlet.ShouldProcess("$upn ($($assignment.target.objectId))", "reprocess PartiallyDelivered assignment in access package $AccessPackageId")) {
+            Invoke-MgGraphRequest -Method POST `
+                -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments/$($assignment.id)/reprocess" | Out-Null
+        }
+    }
+
+>>>>>>> 9a51128 (chore: squashed 2 commits)
     foreach ($assignment in $toRemove) {
         $upn = $assignment.target.displayName ?? $assignment.target.objectId
         if ($PSCmdlet.ShouldProcess("$upn ($($assignment.target.objectId))", "adminRemove from access package $AccessPackageId")) {

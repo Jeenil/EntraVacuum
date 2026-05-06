@@ -32,6 +32,47 @@ Sync-EntraVacAccessPackage -AccessPackageId "<package-id>"
 Sync-EntraVacAccessPackage -AccessPackageId "<package-id>" -WhatIf
 ```
 
+## Assignment state handling
+
+`Sync-EntraVacAccessPackage` handles all active assignment states:
+
+| State | User in target | Action |
+|---|---|---|
+| `Delivered` | Yes | Keep |
+| `Delivered` | No | adminRemove |
+| `PartiallyDelivered` | Yes | Reprocess ([ref](https://learn.microsoft.com/en-us/graph/api/accesspackageassignment-reprocess?view=graph-rest-1.0)) |
+| `PartiallyDelivered` | No | adminRemove |
+| No assignment | Yes | adminAdd |
+
+`Get-EntraVacAccessPackageDrift` surfaces these as `ShouldAdd`, `ShouldReprocess`, and `ShouldRemove`.
+
+## Policy requirements
+
+Both functions require the access package to have an auto-assignment policy
+([`accessPackageAssignmentPolicy`](https://learn.microsoft.com/en-us/graph/api/resources/accesspackageassignmentpolicy?view=graph-rest-1.0))
+with [`automaticRequestSettings`](https://learn.microsoft.com/en-us/graph/api/resources/accesspackageautomaticrequestsettings?view=graph-rest-1.0)
+configured. The following conditions cause the function to skip with a warning or error:
+
+| Condition | Behaviour |
+|---|---|
+| No auto-assignment policy found | Warning - skipped |
+| Auto-assignment policy is inactive (`requestAccessForAllowedTargets = false`) | Warning - skipped |
+| More than one active auto-assignment policy | Error - skipped (misconfiguration, [only one is supported](https://learn.microsoft.com/en-us/entra/id-governance/entitlement-management-access-package-auto-assignment-policy)) |
+| Active policy has no `membershipRule` (dummy/placeholder policy) | Warning - skipped |
+| `membershipRule` evaluates to zero users | Warning - skipped (safety guard against unintended bulk removal) |
+
+## Filter support
+
+The module reads the `membershipRule` from the access package's auto-assignment policy and translates
+it to a Graph OData filter. The following Entra attribute syntax is supported:
+
+- Standard user properties: `user.department`, `user.jobTitle`, `user.country`, `user.companyName`, etc.
+- Extension attributes 1-15: `user.extensionAttribute1` through `user.extensionAttribute15`
+  (mapped to [`onPremisesExtensionAttributes`](https://learn.microsoft.com/en-us/graph/api/resources/onpremisesextensionattributes?view=graph-rest-1.0))
+- Operators: `-eq`, `-ne`, `-and`, `-or`, parentheses for grouping
+
+Custom schema extensions (`extension_<guid>_*`) are not supported yet. If needed please open an issue.
+
 ## Development
 
 ```powershell
@@ -63,6 +104,3 @@ Then trigger a publish manually from the Actions tab once merged.
 ## License
 
 MIT
-
-
-canary

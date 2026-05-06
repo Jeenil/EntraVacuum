@@ -6,13 +6,13 @@ function Convert-PolicyFilterToGraphFilter {
     .DESCRIPTION
         Auto-assignment policy filters use a syntax like:
             user.department -eq "Marketing"
-            user.extension_<guid>_someAttr -eq "Value"
+            user.extensionAttribute1 -eq "Foo"
         This function converts them to Graph-compatible OData filter strings:
             department eq 'Marketing'
-            extension_<guid>_someAttr eq 'Value'
+            onPremisesExtensionAttributes/extensionAttribute1 eq 'Foo'
 
     .PARAMETER PolicyFilter
-        The filter string from the auto-assignment policy's requestorFilter property.
+        The filter string from the auto-assignment policy's specificAllowedTargets membershipRule.
     #>
     param (
         [Parameter(Mandatory)]
@@ -26,6 +26,10 @@ function Convert-PolicyFilterToGraphFilter {
 
     # Strip 'user.' prefix from each clause
     $filter = $PolicyFilter -replace 'user\.', ''
+
+    # extensionAttribute1..15 lives under onPremisesExtensionAttributes in Graph.
+    # Ref: https://learn.microsoft.com/en-us/graph/api/resources/onpremisesextensionattributes?view=graph-rest-1.0
+    $filter = $filter -replace 'extensionAttribute(\d+)', 'onPremisesExtensionAttributes/extensionAttribute$1'
 
     # Convert -eq to eq, -ne to ne, -and to and, -or to or
     $filter = $filter -replace ' -eq ',  " eq "

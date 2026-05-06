@@ -148,4 +148,35 @@ Describe 'Get-EntraVacAccessPackageDrift' {
             $drift.ShouldRemove.objectId | Should -Contain 'user-b'
         }
     }
+<<<<<<< HEAD
+=======
+
+    Context 'when a PartiallyDelivered assignment exists for a user still in target' {
+        BeforeEach {
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @($script:ActivePolicy) }
+            } -ParameterFilter { $Uri -like '*assignmentPolicies*' }
+
+            # user-a has a PartiallyDelivered assignment and still matches the filter
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @(
+                    @{ id = 'assign-a'; state = 'PartiallyDelivered'; target = @{ objectId = 'user-a'; displayName = 'User A' } }
+                )}
+            } -ParameterFilter { $Uri -like '*assignments*' }
+
+            Mock -ModuleName EntraVacuum Invoke-MgGraphRequest {
+                @{ value = @(
+                    @{ id = 'user-a'; displayName = 'User A'; userPrincipalName = 'a@example.com' }
+                )}
+            } -ParameterFilter { $Uri -like '*users*' }
+        }
+
+        It 'reports the assignment in ShouldReprocess not ShouldAdd or ShouldRemove' {
+            $drift = Get-EntraVacAccessPackageDrift -AccessPackageId 'fake-id'
+            ($drift.ShouldReprocess | Measure-Object).Count | Should -Be 1
+            ($drift.ShouldAdd       | Measure-Object).Count | Should -Be 0
+            ($drift.ShouldRemove    | Measure-Object).Count | Should -Be 0
+        }
+    }
+>>>>>>> 9a51128 (chore: squashed 2 commits)
 }

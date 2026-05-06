@@ -8,6 +8,14 @@ function Get-EntraVacAccessPackageDrift {
         membershipRule) against actual delivered assignments and returns a drift report without
         making any changes.
 
+<<<<<<< HEAD
+=======
+        Assignment states handled:
+          Delivered          - included in current membership check.
+          PartiallyDelivered - user in target: reported in ShouldReprocess.
+                               User not in target: reported in ShouldRemove.
+
+>>>>>>> 9a51128 (chore: squashed 2 commits)
         Microsoft only permits one auto-assignment policy per access package. If more than one
         active policy is detected this indicates a misconfiguration and an error is emitted.
         Ref: https://learn.microsoft.com/en-us/entra/id-governance/entitlement-management-access-package-auto-assignment-policy
@@ -52,13 +60,19 @@ function Get-EntraVacAccessPackageDrift {
 
     $activePolicy = $activePolicies | Select-Object -First 1
 
+<<<<<<< HEAD
     # Get Delivered assignments.
+=======
+    # Get Delivered and PartiallyDelivered assignments.
+    # PartiallyDelivered = provisioning started but at least one resource role failed.
+>>>>>>> 9a51128 (chore: squashed 2 commits)
     # Ref: https://learn.microsoft.com/en-us/graph/api/entitlementmanagement-list-assignments?view=graph-rest-1.0
     $assignments = Invoke-MgGraphRequest -Method GET `
-        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and state eq 'Delivered'&`$expand=target" |
+        -Uri "https://graph.microsoft.com/v1.0/identityGovernance/entitlementManagement/assignments?`$filter=accessPackage/id eq '$AccessPackageId' and (state eq 'Delivered' or state eq 'PartiallyDelivered')&`$expand=target" |
         Select-Object -ExpandProperty value
 
-    $assignedUserIds = $assignments | ForEach-Object { $_.target.objectId }
+    $partialAssignments = $assignments | Where-Object { $_.state -eq 'PartiallyDelivered' }
+    $assignedUserIds    = $assignments | ForEach-Object { $_.target.objectId }
 
     # Ref: https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0
     $membershipRule = $activePolicy.specificAllowedTargets |
@@ -70,9 +84,19 @@ function Get-EntraVacAccessPackageDrift {
         return
     }
 
+<<<<<<< HEAD
     $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $membershipRule
     $targetUsers = Invoke-MgGraphRequest -Method GET `
         -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id,displayName,userPrincipalName" |
+=======
+    # ConsistencyLevel + $count=true required for advanced filter properties such as
+    # onPremisesExtensionAttributes. Safe to use for all filter expressions.
+    # Ref: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http
+    $graphFilter = Convert-PolicyFilterToGraphFilter -PolicyFilter $membershipRule
+    $targetUsers = Invoke-MgGraphRequest -Method GET `
+        -Uri "https://graph.microsoft.com/v1.0/users?`$filter=$graphFilter&`$select=id,displayName,userPrincipalName&`$count=true" `
+        -Headers @{ ConsistencyLevel = 'eventual' } |
+>>>>>>> 9a51128 (chore: squashed 2 commits)
         Select-Object -ExpandProperty value
 
     if (-not $targetUsers) {
@@ -83,8 +107,9 @@ function Get-EntraVacAccessPackageDrift {
     $targetUserIds = $targetUsers | ForEach-Object { $_.id }
 
     [PSCustomObject]@{
-        AccessPackageId = $AccessPackageId
-        ShouldAdd       = $targetUsers | Where-Object { $_.id -notin $assignedUserIds }
-        ShouldRemove    = $assignments | Where-Object { $_.target.objectId -notin $targetUserIds } | ForEach-Object { $_.target }
+        AccessPackageId   = $AccessPackageId
+        ShouldAdd         = $targetUsers | Where-Object { $_.id -notin $assignedUserIds }
+        ShouldReprocess   = $partialAssignments | Where-Object { $_.target.objectId -in $targetUserIds } | ForEach-Object { $_.target }
+        ShouldRemove      = $assignments | Where-Object { $_.target.objectId -notin $targetUserIds } | ForEach-Object { $_.target }
     }
 }

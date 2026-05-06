@@ -27,7 +27,11 @@
     "PSGallery",
     "PSGALLERY",
     "PSSA",
+    "ConsistencyLevel",
+    "extensionAttribute",
+    "onPremisesExtensionAttributes",
     "requestorFilter",
     "ShouldProcess",
+    "specificAllowedTargets",
   ],
 }
